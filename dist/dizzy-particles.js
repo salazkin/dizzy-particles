@@ -4,17 +4,6 @@ class Point {
         this.y = 0;
     }
 }
-class Particle {
-    constructor() {
-        this.x = 0;
-        this.y = 0;
-        this.alpha = 1;
-        this.scaleX = 0;
-        this.scaleY = 0;
-        this.rotation = 0;
-        this.tint = "0xff0000";
-    }
-}
 class Particles {
     constructor(totalParticles, loop, config, cb) {
         this.totalParticles = totalParticles;
@@ -22,7 +11,6 @@ class Particles {
         this.config = config;
         this.cb = cb;
         this.particles = [];
-        this.particleDataArr = [];
         this.time = 0;
         this.delay = 0;
         this.posStart = { x: 0, y: 0 };
@@ -34,68 +22,70 @@ class Particles {
     }
     createParticles(totalParticles) {
         for (let i = 0; i < totalParticles; i++) {
-            const particle = new Particle();
-            particle.alpha = 0;
-            this.particles[i] = particle;
-            this.particleDataArr.push({
-                particle: this.particles[i],
-                configUpdated: false,
+            const particleResult = this.createParticle();
+            particleResult.alpha = 0;
+            const particleData = {
+                result: particleResult,
+                updated: false,
                 delay: this.getDelay(),
                 duration: this.getDuration(),
-                config: {}
-            });
+            };
+            this.particles.push(particleData);
         }
+    }
+    createParticle() {
+        return { x: 0, y: 0, alpha: 1, scaleX: 1, scaleY: 1, rotation: 0, tint: "0xffffff" };
     }
     update(dt) {
         const time = this.time;
         let count = 0;
-        this.particleDataArr.forEach(item => {
-            if (item.duration === 0) {
+        this.particles.forEach(particleData => {
+            if (particleData.duration === 0) {
                 count++;
                 return;
             }
-            const t = (time - item.delay) / item.duration;
+            const t = (time - particleData.delay) / particleData.duration;
             if (t >= 0 && t <= 1) {
-                item.particle.alpha = 1;
-                if (!item.configUpdated) {
-                    item.configUpdated = true;
-                    this.updateConfig(item.config);
+                particleData.result.alpha = 1;
+                if (!particleData.updated) {
+                    particleData.updated = true;
+                    this.updateParticleData(particleData);
                 }
-                this.onUpdateParticle(item.particle, item.config, t);
+                this.updateResult(particleData, t);
             }
             else {
-                item.configUpdated = false;
-                item.particle.alpha = 0;
+                particleData.updated = false;
+                particleData.result.alpha = 0;
             }
-            if (time >= item.delay + item.duration) {
+            if (time >= particleData.delay + particleData.duration) {
                 if (this.loop) {
-                    item.duration = this.getDuration();
-                    item.delay = this.getDelay();
+                    particleData.duration = this.getDuration();
+                    particleData.delay = this.getDelay();
                 }
                 else {
                     count++;
-                    item.duration = 0;
-                    item.particle.alpha = 0;
+                    particleData.duration = 0;
+                    particleData.result.alpha = 0;
                 }
             }
         });
         this.delay = 0;
         this.time += dt;
-        if (count >= this.particleDataArr.length) {
+        if (count >= this.particles.length) {
             this.onComplete();
         }
     }
     reset() {
         this.time = 0;
         this.delay = 0;
-        this.particleDataArr.forEach(particleData => {
-            particleData.configUpdated = false;
+        this.particles.forEach(particleData => {
+            particleData.updated = false;
             particleData.delay = this.getDelay(),
                 particleData.duration = this.getDuration();
-            if (particleData.particle) {
-                particleData.particle.alpha = 0;
-                particleData.particle.x = 0;
-                particleData.particle.y = 0;
+            if (particleData.result) {
+                particleData.result.alpha = 0;
+                particleData.result.x = 0;
+                particleData.result.y = 0;
             }
         });
     }
@@ -135,15 +125,15 @@ class Particles {
         this.delay += this.getValue("delay");
         return this.time + this.delay;
     }
-    updateConfig(target) {
+    updateParticleData(particleData) {
         const startX = this.posStart.x + this.getValue("posStartOffsetX");
         const startY = this.posStart.y + this.getValue("posStartOffsetY");
         const endX = this.posEnd.x + this.getValue("posEndOffsetX");
         const endY = this.posEnd.y + this.getValue("posEndOffsetY");
-        target.posStart = { x: startX, y: startY };
-        target.posEnd = { x: endX, y: endY };
-        target.cp1 = null;
-        target.cp2 = null;
+        particleData.posStart = { x: startX, y: startY };
+        particleData.posEnd = { x: endX, y: endY };
+        particleData.cp1 = null;
+        particleData.cp2 = null;
         const cp1Mag = this.getValue("posControlPoint1Mag");
         const cp2Mag = this.getValue("posControlPoint2Mag");
         if (cp1Mag !== 0 || cp2Mag !== 0) {
@@ -153,33 +143,33 @@ class Particles {
             let angle1 = ang + degreeToRadians(this.getValue("posControlPoint1Angle"));
             let angle2 = -(Math.PI - ang) + degreeToRadians(this.getValue("posControlPoint2Angle"));
             let dist = Math.sqrt(dx * dx + dy * dy);
-            target.cp1 = { x: startX + Math.sin(angle1) * dist * cp1Mag, y: startY + Math.cos(angle1) * dist * cp1Mag };
-            target.cp2 = { x: endX + Math.sin(angle2) * dist * cp2Mag, y: endY + Math.cos(angle2) * dist * cp2Mag };
-            if (target.curve) {
-                target.curve.length = 0;
+            particleData.cp1 = { x: startX + Math.sin(angle1) * dist * cp1Mag, y: startY + Math.cos(angle1) * dist * cp1Mag };
+            particleData.cp2 = { x: endX + Math.sin(angle2) * dist * cp2Mag, y: endY + Math.cos(angle2) * dist * cp2Mag };
+            if (particleData.curve) {
+                particleData.curve.length = 0;
             }
             else {
-                target.curve = [];
+                particleData.curve = [];
             }
         }
-        target.alphaFrom = this.getValue("alphaFrom");
-        target.alphaTo = this.getValue("alphaTo");
-        target.alphaYoYo = this.getValue("alphaYoYo");
+        particleData.alphaFrom = this.getValue("alphaFrom");
+        particleData.alphaTo = this.getValue("alphaTo");
+        particleData.alphaYoYo = this.getValue("alphaYoYo");
         if (this.config.tint) {
             if (this.config.tintInterpolate && Array.isArray(this.config.tint) && this.config.tint.length > 1) {
                 if (!this.correctedTintArr) {
                     this.correctedTintArr = getInterpolatedColors(this.config.tint, 5);
                 }
-                target.tint = this.correctedTintArr;
+                particleData.tint = this.correctedTintArr;
             }
             else {
-                target.tint = this.getValue("tint");
+                particleData.tint = this.getValue("tint");
             }
         }
-        target.scaleFrom = this.getValue("scaleFrom");
-        target.scaleTo = this.getValue("scaleTo");
-        target.scaleYoYo = this.getValue("scaleYoYo");
-        target.rotationSpeed = degreeToRadians(this.getValue("rotationSpeed"));
+        particleData.scaleFrom = this.getValue("scaleFrom");
+        particleData.scaleTo = this.getValue("scaleTo");
+        particleData.scaleYoYo = this.getValue("scaleYoYo");
+        particleData.rotationSpeed = degreeToRadians(this.getValue("rotationSpeed"));
     }
     getValue(key) {
         if (Array.isArray(this.config[key])) {
@@ -198,48 +188,49 @@ class Particles {
             return this.config[key] || 0;
         }
     }
-    onUpdateParticle(particle, config, t) {
+    updateResult(particleData, t) {
         const yoyoTime = t * (1 - t) * 2;
-        particle.alpha = config.alphaFrom + (config.alphaTo - config.alphaFrom) * (config.alphaYoYo ? yoyoTime : t);
-        particle.scaleX = particle.scaleY = interpolate(config.scaleYoYo ? yoyoTime : t, config.scaleFrom, config.scaleTo);
-        if (config.curve) {
+        const result = particleData.result;
+        result.alpha = particleData.alphaFrom + (particleData.alphaTo - particleData.alphaFrom) * (particleData.alphaYoYo ? yoyoTime : t);
+        result.scaleX = result.scaleY = interpolate(particleData.scaleYoYo ? yoyoTime : t, particleData.scaleFrom, particleData.scaleTo);
+        if (particleData.curve) {
             const from = Math.floor(t / this.curveSeg);
             const to = from + 1;
-            if (config.curve[from] === undefined) {
-                config.curve[from] = from === 0 ? config.posStart : new Point();
+            if (particleData.curve[from] === undefined) {
+                particleData.curve[from] = from === 0 ? particleData.posStart : new Point();
             }
-            if (config.curve[to] === undefined) {
-                config.curve[to] = to === this.curveLen - 1 ? config.posEnd : new Point();
+            if (particleData.curve[to] === undefined) {
+                particleData.curve[to] = to === this.curveLen - 1 ? particleData.posEnd : new Point();
             }
             if (from !== 0) {
-                setPositionOnCurve(config.curve[from], from * this.curveSeg, config.posStart, config.posEnd, config.cp1, config.cp2);
+                setPositionOnCurve(particleData.curve[from], from * this.curveSeg, particleData.posStart, particleData.posEnd, particleData.cp1, particleData.cp2);
             }
             if (to !== this.curveLen - 1) {
-                setPositionOnCurve(config.curve[to], to * this.curveSeg, config.posStart, config.posEnd, config.cp1, config.cp2);
+                setPositionOnCurve(particleData.curve[to], to * this.curveSeg, particleData.posStart, particleData.posEnd, particleData.cp1, particleData.cp2);
             }
-            setPositionOnLine(particle, (t % this.curveSeg) / this.curveSeg, config.curve[from], config.curve[to]);
+            setPositionOnLine(result, (t % this.curveSeg) / this.curveSeg, particleData.curve[from], particleData.curve[to]);
         }
         else {
-            setPositionOnLine(particle, t, config.posStart, config.posEnd);
+            setPositionOnLine(result, t, particleData.posStart, particleData.posEnd);
         }
-        if (config.rotationSpeed !== 0) {
-            particle.rotation += config.rotationSpeed;
+        if (particleData.rotationSpeed !== 0) {
+            result.rotation += particleData.rotationSpeed;
         }
         else {
-            particle.rotation = 0;
+            result.rotation = 0;
         }
-        if (config.tint) {
-            if (Array.isArray(config.tint)) {
-                const seg = 1 / (config.tint.length - 1);
-                particle.tint = config.tint[Math.floor(t / seg)];
+        if (particleData.tint) {
+            if (Array.isArray(particleData.tint)) {
+                const seg = 1 / (particleData.tint.length - 1);
+                result.tint = particleData.tint[Math.floor(t / seg)];
             }
             else {
-                particle.tint = config.tint;
+                result.tint = particleData.tint;
             }
         }
     }
     kill() {
-        this.particleDataArr.length = 0;
+        this.particles.length = 0;
         this.cb = null;
     }
 }

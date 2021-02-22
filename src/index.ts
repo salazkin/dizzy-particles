@@ -1,3 +1,8 @@
+class Point {
+    x: number = 0;
+    y: number = 0;
+};
+
 type ParticlesConfig = {
     duration?: Array<number | number[]> | number;
     delay?: Array<number | number[]> | number;
@@ -22,7 +27,17 @@ type ParticlesConfig = {
     additive?: boolean;
 };
 
-type ParticleTransformData = {
+interface IParticleResult {
+    x: number;
+    y: number;
+    alpha: number;
+    scaleX: number;
+    scaleY: number;
+    rotation: number;
+    tint: string;
+}
+
+type ParticleData = {
     posStart: Point;
     posEnd: Point;
     cp1: Point | null;
@@ -36,34 +51,14 @@ type ParticleTransformData = {
     scaleYoYo: boolean;
     rotationSpeed: number;
     tint: string | string[];
-};
-
-class Point {
-    x: number = 0;
-    y: number = 0;
-};
-
-class Particle {
-    x: number = 0;
-    y: number = 0;
-    alpha: number = 1;
-    scaleX: number = 0;
-    scaleY: number = 0;
-    rotation: number = 0;
-    tint: string = "0xff0000";
-}
-
-type ParticleData = {
-    configUpdated: boolean;
+    updated: boolean;
     delay: number;
     duration: number;
-    particle: Particle;
-    config: Partial<ParticleTransformData>;
+    result: IParticleResult;
 };
 
 class Particles {
-    public particles: Particle[] = [];
-    protected particleDataArr: ParticleData[] = [];
+    public particles: ParticleData[] = [];
     protected time: number = 0;
     protected delay: number = 0;
 
@@ -80,49 +75,53 @@ class Particles {
 
     protected createParticles(totalParticles: number) {
         for (let i = 0; i < totalParticles; i++) {
-            const particle = new Particle();
-            particle.alpha = 0;
-            this.particles[i] = particle;
-            this.particleDataArr.push({
-                particle: this.particles[i],
-                configUpdated: false,
+            const particleResult = this.createParticle();
+            particleResult.alpha = 0;
+
+            const particleData: Partial<ParticleData> = {
+                result: particleResult,
+                updated: false,
                 delay: this.getDelay(),
                 duration: this.getDuration(),
-                config: {}
-            });
+            };
+            this.particles.push(particleData as ParticleData);
         }
+    }
+
+    protected createParticle(): IParticleResult {
+        return { x: 0, y: 0, alpha: 1, scaleX: 1, scaleY: 1, rotation: 0, tint: "0xffffff" };
     }
 
     public update(dt: number): void {
         const time = this.time;
         let count = 0;
-        this.particleDataArr.forEach(item => {
-            if (item.duration === 0) {
+        this.particles.forEach(particleData => {
+            if (particleData.duration === 0) {
                 count++;
                 return;
             }
-            const t = (time - item.delay) / item.duration;
+            const t = (time - particleData.delay) / particleData.duration;
             if (t >= 0 && t <= 1) {
-                item.particle.alpha = 1;
-                if (!item.configUpdated) {
-                    item.configUpdated = true;
-                    this.updateConfig(item.config as ParticleTransformData);
+                particleData.result.alpha = 1;
+                if (!particleData.updated) {
+                    particleData.updated = true;
+                    this.updateParticleData(particleData);
                 }
 
-                this.onUpdateParticle(item.particle, item.config as ParticleTransformData, t);
+                this.updateResult(particleData, t);
             } else {
-                item.configUpdated = false;
-                item.particle.alpha = 0;
+                particleData.updated = false;
+                particleData.result.alpha = 0;
             }
 
-            if (time >= item.delay + item.duration) {
+            if (time >= particleData.delay + particleData.duration) {
                 if (this.loop) {
-                    item.duration = this.getDuration();
-                    item.delay = this.getDelay();
+                    particleData.duration = this.getDuration();
+                    particleData.delay = this.getDelay();
                 } else {
                     count++;
-                    item.duration = 0;
-                    item.particle.alpha = 0;
+                    particleData.duration = 0;
+                    particleData.result.alpha = 0;
                 }
             }
         });
@@ -130,7 +129,7 @@ class Particles {
         this.delay = 0;
         this.time += dt;
 
-        if (count >= this.particleDataArr.length) {
+        if (count >= this.particles.length) {
             this.onComplete();
         }
     }
@@ -138,14 +137,14 @@ class Particles {
     public reset(): void {
         this.time = 0;
         this.delay = 0;
-        this.particleDataArr.forEach(particleData => {
-            particleData.configUpdated = false;
+        this.particles.forEach(particleData => {
+            particleData.updated = false;
             particleData.delay = this.getDelay(),
                 particleData.duration = this.getDuration();
-            if (particleData.particle) {
-                particleData.particle.alpha = 0;
-                particleData.particle.x = 0;
-                particleData.particle.y = 0;
+            if (particleData.result) {
+                particleData.result.alpha = 0;
+                particleData.result.x = 0;
+                particleData.result.y = 0;
             }
         });
     }
@@ -196,16 +195,16 @@ class Particles {
         return this.time + this.delay;
     }
 
-    protected updateConfig(target: ParticleTransformData): void {
+    protected updateParticleData(particleData: ParticleData): void {
         const startX = this.posStart.x + this.getValue<number>("posStartOffsetX");
         const startY = this.posStart.y + this.getValue<number>("posStartOffsetY");
         const endX = this.posEnd.x + this.getValue<number>("posEndOffsetX");
         const endY = this.posEnd.y + this.getValue<number>("posEndOffsetY");
 
-        target.posStart = { x: startX, y: startY };
-        target.posEnd = { x: endX, y: endY };
-        target.cp1 = null;
-        target.cp2 = null;
+        particleData.posStart = { x: startX, y: startY };
+        particleData.posEnd = { x: endX, y: endY };
+        particleData.cp1 = null;
+        particleData.cp2 = null;
 
         const cp1Mag: number = this.getValue<number>("posControlPoint1Mag");
         const cp2Mag: number = this.getValue<number>("posControlPoint2Mag");
@@ -219,34 +218,34 @@ class Particles {
 
             let dist = Math.sqrt(dx * dx + dy * dy);
 
-            target.cp1 = { x: startX + Math.sin(angle1) * dist * cp1Mag, y: startY + Math.cos(angle1) * dist * cp1Mag };
-            target.cp2 = { x: endX + Math.sin(angle2) * dist * cp2Mag, y: endY + Math.cos(angle2) * dist * cp2Mag };
-            if (target.curve) {
-                target.curve.length = 0;
+            particleData.cp1 = { x: startX + Math.sin(angle1) * dist * cp1Mag, y: startY + Math.cos(angle1) * dist * cp1Mag };
+            particleData.cp2 = { x: endX + Math.sin(angle2) * dist * cp2Mag, y: endY + Math.cos(angle2) * dist * cp2Mag };
+            if (particleData.curve) {
+                particleData.curve.length = 0;
             } else {
-                target.curve = [];
+                particleData.curve = [];
             }
         }
 
-        target.alphaFrom = this.getValue<number>("alphaFrom");
-        target.alphaTo = this.getValue<number>("alphaTo");
-        target.alphaYoYo = this.getValue<boolean>("alphaYoYo");
+        particleData.alphaFrom = this.getValue<number>("alphaFrom");
+        particleData.alphaTo = this.getValue<number>("alphaTo");
+        particleData.alphaYoYo = this.getValue<boolean>("alphaYoYo");
 
         if (this.config.tint) {
             if (this.config.tintInterpolate && Array.isArray(this.config.tint) && this.config.tint.length > 1) {
                 if (!this.correctedTintArr) {
                     this.correctedTintArr = getInterpolatedColors(this.config.tint, 5);
                 }
-                target.tint = this.correctedTintArr;
+                particleData.tint = this.correctedTintArr;
             } else {
-                target.tint = this.getValue<string>("tint");
+                particleData.tint = this.getValue<string>("tint");
             }
         }
 
-        target.scaleFrom = this.getValue<number>("scaleFrom");
-        target.scaleTo = this.getValue<number>("scaleTo");
-        target.scaleYoYo = this.getValue<boolean>("scaleYoYo");
-        target.rotationSpeed = degreeToRadians(this.getValue<number>("rotationSpeed"));
+        particleData.scaleFrom = this.getValue<number>("scaleFrom");
+        particleData.scaleTo = this.getValue<number>("scaleTo");
+        particleData.scaleYoYo = this.getValue<boolean>("scaleYoYo");
+        particleData.rotationSpeed = degreeToRadians(this.getValue<number>("rotationSpeed"));
     }
 
     protected getValue<T>(key: string): T {
@@ -265,55 +264,56 @@ class Particles {
         }
     }
 
-    protected onUpdateParticle(particle: Particle, config: ParticleTransformData, t: number) {
+    protected updateResult(particleData: ParticleData, t: number) {
         const yoyoTime = t * (1 - t) * 2;
 
-        particle.alpha = config.alphaFrom + (config.alphaTo - config.alphaFrom) * (config.alphaYoYo ? yoyoTime : t);
-        particle.scaleX = particle.scaleY = interpolate(config.scaleYoYo ? yoyoTime : t, config.scaleFrom, config.scaleTo);
+        const result: IParticleResult = particleData.result;
+        result.alpha = particleData.alphaFrom + (particleData.alphaTo - particleData.alphaFrom) * (particleData.alphaYoYo ? yoyoTime : t);
+        result.scaleX = result.scaleY = interpolate(particleData.scaleYoYo ? yoyoTime : t, particleData.scaleFrom, particleData.scaleTo);
 
-        if (config.curve) {
+        if (particleData.curve) {
             const from = Math.floor(t / this.curveSeg);
             const to = from + 1;
 
-            if (config.curve[from] === undefined) {
-                config.curve[from] = from === 0 ? config.posStart : new Point();
+            if (particleData.curve[from] === undefined) {
+                particleData.curve[from] = from === 0 ? particleData.posStart : new Point();
             }
 
-            if (config.curve[to] === undefined) {
-                config.curve[to] = to === this.curveLen - 1 ? config.posEnd : new Point();
+            if (particleData.curve[to] === undefined) {
+                particleData.curve[to] = to === this.curveLen - 1 ? particleData.posEnd : new Point();
             }
 
             if (from !== 0) {
-                setPositionOnCurve(config.curve[from], from * this.curveSeg, config.posStart, config.posEnd, config.cp1, config.cp2);
+                setPositionOnCurve(particleData.curve[from], from * this.curveSeg, particleData.posStart, particleData.posEnd, particleData.cp1, particleData.cp2);
             }
 
             if (to !== this.curveLen - 1) {
-                setPositionOnCurve(config.curve[to], to * this.curveSeg, config.posStart, config.posEnd, config.cp1, config.cp2);
+                setPositionOnCurve(particleData.curve[to], to * this.curveSeg, particleData.posStart, particleData.posEnd, particleData.cp1, particleData.cp2);
             }
 
-            setPositionOnLine(particle, (t % this.curveSeg) / this.curveSeg, config.curve[from], config.curve[to]);
+            setPositionOnLine(result, (t % this.curveSeg) / this.curveSeg, particleData.curve[from], particleData.curve[to]);
         } else {
-            setPositionOnLine(particle, t, config.posStart, config.posEnd);
+            setPositionOnLine(result, t, particleData.posStart, particleData.posEnd);
         }
 
-        if (config.rotationSpeed !== 0) {
-            particle.rotation += config.rotationSpeed;
+        if (particleData.rotationSpeed !== 0) {
+            result.rotation += particleData.rotationSpeed;
         } else {
-            particle.rotation = 0;
+            result.rotation = 0;
         }
 
-        if (config.tint) {
-            if (Array.isArray(config.tint)) {
-                const seg = 1 / (config.tint.length - 1);
-                particle.tint = config.tint[Math.floor(t / seg)];
+        if (particleData.tint) {
+            if (Array.isArray(particleData.tint)) {
+                const seg = 1 / (particleData.tint.length - 1);
+                result.tint = particleData.tint[Math.floor(t / seg)];
             } else {
-                particle.tint = config.tint;
+                result.tint = particleData.tint;
             }
         }
     }
 
     public kill() {
-        this.particleDataArr.length = 0;
+        this.particles.length = 0;
         this.cb = null;
     }
 }
@@ -453,4 +453,4 @@ const setPositionOnCurve = (target: Point, t: number, p1: Point, p2: Point, cp1:
     target.y = Math.pow(1 - t, 3) * p1.y + 3 * Math.pow(1 - t, 2) * t * cp1.y + 3 * (1 - t) * t2 * cp2.y + t3 * p2.y;
 };
 
-export { Particles };
+export { Particles, IParticleResult, ParticlesConfig };
