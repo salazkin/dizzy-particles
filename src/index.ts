@@ -82,7 +82,7 @@ class Particles {
                 result: particleResult,
                 updated: false,
                 delay: this.getDelay(),
-                duration: this.getDuration(),
+                duration: this.getDuration()
             };
             this.particles.push(particleData as ParticleData);
         }
@@ -225,6 +225,8 @@ class Particles {
             } else {
                 particleData.curve = [];
             }
+        } else {
+            particleData.curve = undefined;
         }
 
         particleData.alphaFrom = this.getValue<number>("alphaFrom");
