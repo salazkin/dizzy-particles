@@ -1,0 +1,22 @@
+{
+    "name": "dizzy-particles",
+    "author": "Alexey Salazkin",
+    "version": "1.0.0",
+    "description": "Simple 2d rendering engine.",
+    "keywords": [
+        "particles",
+        "engine"
+    ],
+    "main": "dist/dizzy-particles.js",
+    "types": "dist/dizzy-particles.d.ts",
+    "homepage": "https://github.com/salazkin/dizzy-particles",
+    "devDependencies": {
+        "dts-bundle-generator": "^4.2.0",
+        "rollup-plugin-terser": "^7.0.2",
+        "typescript": "^4.1.5"
+    },
+    "scripts": {
+        "start": "tsc && rollup -c &&  dts-bundle-generator -o dist/dizzy-particles.d.ts src/index.ts"
+    },
+    "license": "MIT"
+}

@@ -1,0 +1,10 @@
+{
+    "typescript.format.semicolons": "insert",
+    "editor.detectIndentation": false,
+    "files.exclude": {
+        "package-lock.json": true,
+        "node_modules": false,
+        "src/**.js": true,
+        "src/**.d.ts": true
+    }
+}
