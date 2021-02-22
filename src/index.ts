@@ -61,7 +61,7 @@ type ParticleData = {
     config: Partial<ParticleTransformData>;
 };
 
-export default class Particles {
+class Particles {
     public particles: Particle[] = [];
     protected particleDataArr: ParticleData[] = [];
     protected time: number = 0;
@@ -452,3 +452,5 @@ const setPositionOnCurve = (target: Point, t: number, p1: Point, p2: Point, cp1:
     target.x = Math.pow(1 - t, 3) * p1.x + 3 * Math.pow(1 - t, 2) * t * cp1.x + 3 * (1 - t) * t2 * cp2.x + t3 * p2.x;
     target.y = Math.pow(1 - t, 3) * p1.y + 3 * Math.pow(1 - t, 2) * t * cp1.y + 3 * (1 - t) * t2 * cp2.y + t3 * p2.y;
 };
+
+export { Particles };
