@@ -58,7 +58,7 @@ export declare type ParticleData = {
 	particle: Particle;
 	config: Partial<ParticleTransformData>;
 };
-export default class Particles {
+export declare class Particles {
 	protected totalParticles: number;
 	protected loop: boolean;
 	protected config: ParticlesConfig;

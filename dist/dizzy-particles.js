@@ -349,5 +349,5 @@ const setPositionOnCurve = (target, t, p1, p2, cp1, cp2) => {
     target.y = Math.pow(1 - t, 3) * p1.y + 3 * Math.pow(1 - t, 2) * t * cp1.y + 3 * (1 - t) * t2 * cp2.y + t3 * p2.y;
 };
 
-export default Particles;
+export { Particles };
 //# sourceMappingURL=dizzy-particles.js.map
