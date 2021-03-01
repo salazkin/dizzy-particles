@@ -1,3 +1,109 @@
+const degreeToRadians = (degrees) => {
+    return degrees * Math.PI / 180;
+};
+const interpolate = (t, v1, v2, shortestDist = false) => {
+    if (shortestDist) {
+        const a = Math.min(v1, v2);
+        const b = Math.max(v1, v2);
+        const dist1 = b - a;
+        const dist2 = 1 - b + a;
+        if (dist1 < dist2) {
+            return a + dist1 * t;
+        }
+        else {
+            return (b + dist2 * t) % 1;
+        }
+    }
+    return v1 + (v2 - v1) * t;
+};
+const getPositionOnLine = (t, p0, p1, target) => {
+    const x = interpolate(t, p0.x, p1.x);
+    const y = interpolate(t, p0.y, p1.y);
+    if (target !== undefined) {
+        target.x = x;
+        target.y = y;
+    }
+    else {
+        return { x, y };
+    }
+};
+const getPositionOnCubicBezierCurve = (t, p1, p2, cp1, cp2, target) => {
+    const t2 = t * t;
+    const t3 = t * t * t;
+    const x = Math.pow(1 - t, 3) * p1.x + 3 * Math.pow(1 - t, 2) * t * cp1.x + 3 * (1 - t) * t2 * cp2.x + t3 * p2.x;
+    const y = Math.pow(1 - t, 3) * p1.y + 3 * Math.pow(1 - t, 2) * t * cp1.y + 3 * (1 - t) * t2 * cp2.y + t3 * p2.y;
+    if (target !== undefined) {
+        target.x = x;
+        target.y = y;
+    }
+    else {
+        return { x, y };
+    }
+};
+const hexToHsl = (hex) => {
+    const r = parseInt(hex.substring(hex.length - 6, hex.length - 4), 16) / 255;
+    const g = parseInt(hex.substring(hex.length - 4, hex.length - 2), 16) / 255;
+    const b = parseInt(hex.substring(hex.length - 2, hex.length), 16) / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let l = (max + min) / 2;
+    let s = 0;
+    let h = 0;
+    if (max !== min) {
+        const d = max - min;
+        s = l < 0.5 ? d / (max + min) : d / (2 - max - min);
+        if (r == max) {
+            h = (g - b) / d + (g < b ? 6 : 0);
+        }
+        else if (g == max) {
+            h = 2 + (b - r) / d;
+        }
+        else {
+            h = 4 + (r - g) / d;
+        }
+    }
+    h /= 6;
+    return [h, s, l];
+};
+const hslToHex = (arr) => {
+    let h = arr[0];
+    let s = arr[1];
+    let l = arr[2];
+    let r, g, b;
+    if (s == 0) {
+        r = g = b = l;
+    }
+    else {
+        let q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        let p = 2 * l - q;
+        const hue = (t, p, q) => {
+            if (t < 0) {
+                t += 1;
+            }
+            if (t > 1) {
+                t -= 1;
+            }
+            if (t < 1 / 6) {
+                return p + (q - p) * 6 * t;
+            }
+            if (t < 1 / 2) {
+                return q;
+            }
+            if (t < 2 / 3) {
+                return p + (q - p) * (2 / 3 - t) * 6;
+            }
+            return p;
+        };
+        r = Math.round(hue(h + 1 / 3, p, q) * 255);
+        g = Math.round(hue(h, p, q) * 255);
+        b = Math.round(hue(h - 1 / 3, p, q) * 255);
+    }
+    const c = (v) => {
+        return ("0" + v.toString(16)).slice(-2);
+    };
+    return "0x" + c(r) + c(g) + c(b);
+};
+
 class Point {
     constructor() {
         this.x = 0;
@@ -28,7 +134,7 @@ class Particles {
                 result: particleResult,
                 updated: false,
                 delay: this.getDelay(),
-                duration: this.getDuration(),
+                duration: this.getDuration()
             };
             this.particles.push(particleData);
         }
@@ -152,6 +258,9 @@ class Particles {
                 particleData.curve = [];
             }
         }
+        else {
+            particleData.curve = undefined;
+        }
         particleData.alphaFrom = this.getValue("alphaFrom");
         particleData.alphaTo = this.getValue("alphaTo");
         particleData.alphaYoYo = this.getValue("alphaYoYo");
@@ -203,15 +312,15 @@ class Particles {
                 particleData.curve[to] = to === this.curveLen - 1 ? particleData.posEnd : new Point();
             }
             if (from !== 0) {
-                setPositionOnCurve(particleData.curve[from], from * this.curveSeg, particleData.posStart, particleData.posEnd, particleData.cp1, particleData.cp2);
+                getPositionOnCubicBezierCurve(from * this.curveSeg, particleData.posStart, particleData.posEnd, particleData.cp1, particleData.cp2, particleData.curve[from]);
             }
             if (to !== this.curveLen - 1) {
-                setPositionOnCurve(particleData.curve[to], to * this.curveSeg, particleData.posStart, particleData.posEnd, particleData.cp1, particleData.cp2);
+                getPositionOnCubicBezierCurve(to * this.curveSeg, particleData.posStart, particleData.posEnd, particleData.cp1, particleData.cp2, particleData.curve[to]);
             }
-            setPositionOnLine(result, (t % this.curveSeg) / this.curveSeg, particleData.curve[from], particleData.curve[to]);
+            getPositionOnLine((t % this.curveSeg) / this.curveSeg, particleData.curve[from], particleData.curve[to], result);
         }
         else {
-            setPositionOnLine(result, t, particleData.posStart, particleData.posEnd);
+            getPositionOnLine(t, particleData.posStart, particleData.posEnd, result);
         }
         if (particleData.rotationSpeed !== 0) {
             result.rotation += particleData.rotationSpeed;
@@ -247,97 +356,6 @@ const getInterpolatedColors = (hexArr, steps) => {
         out.push(hslToHex(c1.map((c, i) => interpolate(t, c, c2[i], i === 0))));
     }
     return out;
-};
-const interpolate = (t, v1, v2, minDist) => {
-    if (!minDist) {
-        return v1 + (v2 - v1) * t;
-    }
-    const a = Math.min(v1, v2);
-    const b = Math.max(v1, v2);
-    const dist1 = b - a;
-    const dist2 = 1 - b + a;
-    if (dist1 < dist2) {
-        return a + dist1 * t;
-    }
-    else {
-        return (b + dist2 * t) % 1;
-    }
-};
-const hexToHsl = (hex) => {
-    const r = parseInt(hex.substring(hex.length - 6, hex.length - 4), 16) / 255;
-    const g = parseInt(hex.substring(hex.length - 4, hex.length - 2), 16) / 255;
-    const b = parseInt(hex.substring(hex.length - 2, hex.length), 16) / 255;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    let l = (max + min) / 2;
-    let s = 0;
-    let h = 0;
-    if (max !== min) {
-        const d = max - min;
-        s = l < 0.5 ? d / (max + min) : d / (2 - max - min);
-        if (r == max) {
-            h = (g - b) / d + (g < b ? 6 : 0);
-        }
-        else if (g == max) {
-            h = 2 + (b - r) / d;
-        }
-        else {
-            h = 4 + (r - g) / d;
-        }
-    }
-    h /= 6;
-    return [h, s, l];
-};
-const hslToHex = (arr) => {
-    let h = arr[0];
-    let s = arr[1];
-    let l = arr[2];
-    let r, g, b;
-    if (s == 0) {
-        r = g = b = l;
-    }
-    else {
-        let q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        let p = 2 * l - q;
-        r = Math.round(hueToRgb(h + 1 / 3, p, q) * 255);
-        g = Math.round(hueToRgb(h, p, q) * 255);
-        b = Math.round(hueToRgb(h - 1 / 3, p, q) * 255);
-    }
-    return "0x" + hexValue(r) + hexValue(g) + hexValue(b);
-};
-const hueToRgb = (t, p, q) => {
-    if (t < 0) {
-        t += 1;
-    }
-    if (t > 1) {
-        t -= 1;
-    }
-    if (t < 1 / 6) {
-        return p + (q - p) * 6 * t;
-    }
-    if (t < 1 / 2) {
-        return q;
-    }
-    if (t < 2 / 3) {
-        return p + (q - p) * (2 / 3 - t) * 6;
-    }
-    return p;
-};
-const hexValue = (v) => {
-    return ("0" + v.toString(16)).slice(-2);
-};
-const degreeToRadians = (degrees) => {
-    return degrees * Math.PI / 180;
-};
-const setPositionOnLine = (target, t, p0, p1) => {
-    target.x = p0.x + (p1.x - p0.x) * t;
-    target.y = p0.y + (p1.y - p0.y) * t;
-};
-const setPositionOnCurve = (target, t, p1, p2, cp1, cp2) => {
-    const t2 = t * t;
-    const t3 = t * t * t;
-    target.x = Math.pow(1 - t, 3) * p1.x + 3 * Math.pow(1 - t, 2) * t * cp1.x + 3 * (1 - t) * t2 * cp2.x + t3 * p2.x;
-    target.y = Math.pow(1 - t, 3) * p1.y + 3 * Math.pow(1 - t, 2) * t * cp1.y + 3 * (1 - t) * t2 * cp2.y + t3 * p2.y;
 };
 
 export { Particles };

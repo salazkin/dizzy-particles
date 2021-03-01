@@ -1,7 +1,11 @@
+import { degreeToRadians, getPositionOnCubicBezierCurve, getPositionOnLine, hexToHsl, hslToHex, interpolate } from "../node_modules/dizzy-utils/dist/dizzy-utils";
+
 class Point {
     x: number = 0;
     y: number = 0;
 };
+
+type HSL = [number, number, number];
 
 type ParticlesConfig = {
     duration?: Array<number | number[]> | number;
@@ -286,16 +290,16 @@ class Particles {
             }
 
             if (from !== 0) {
-                setPositionOnCurve(particleData.curve[from], from * this.curveSeg, particleData.posStart, particleData.posEnd, particleData.cp1, particleData.cp2);
+                getPositionOnCubicBezierCurve(from * this.curveSeg, particleData.posStart, particleData.posEnd, particleData.cp1, particleData.cp2, particleData.curve[from]);
             }
 
             if (to !== this.curveLen - 1) {
-                setPositionOnCurve(particleData.curve[to], to * this.curveSeg, particleData.posStart, particleData.posEnd, particleData.cp1, particleData.cp2);
+                getPositionOnCubicBezierCurve(to * this.curveSeg, particleData.posStart, particleData.posEnd, particleData.cp1, particleData.cp2, particleData.curve[to]);
             }
 
-            setPositionOnLine(result, (t % this.curveSeg) / this.curveSeg, particleData.curve[from], particleData.curve[to]);
+            getPositionOnLine((t % this.curveSeg) / this.curveSeg, particleData.curve[from], particleData.curve[to], result);
         } else {
-            setPositionOnLine(result, t, particleData.posStart, particleData.posEnd);
+            getPositionOnLine(t, particleData.posStart, particleData.posEnd, result);
         }
 
         if (particleData.rotationSpeed !== 0) {
@@ -320,26 +324,6 @@ class Particles {
     }
 }
 
-const getRotationOnCurve = (t: number, p1: Point, p2: Point, cp1: Point, cp2: Point): number => {
-    const t2 = t * t;
-    const dx = 3 * Math.pow(1 - t, 2) * (cp1.x - p1.x) + 6 * (1 - t) * t * (cp2.x - cp1.x) + 3 * t2 * (p1.y - cp2.x);
-    const dy = 3 * Math.pow(1 - t, 2) * (cp1.y - p1.y) + 6 * (1 - t) * t * (cp2.y - cp1.y) + 3 * t2 * (p2.y - cp2.y);
-    return Math.atan2(dx, dy);
-};
-
-const hexToRgb = (color: string): number[] => {
-    const arr: number[] = [];
-    for (let i = 2; i >= 0; i--) {
-        const c = color.substring(color.length - i * 2 - 2, color.length - i * 2);
-        arr.push(parseInt(c, 16));
-    }
-    return arr;
-};
-
-const rgbToHex = (arr: number[], prefix: string): string => {
-    return prefix + arr.map(v => hexValue(v)).join("");
-};
-
 const getInterpolatedColors = (hexArr: string[], steps: number): string[] => {
     const arr = hexArr.map(hex => hexToHsl(hex));
     const out: string[] = [];
@@ -350,109 +334,9 @@ const getInterpolatedColors = (hexArr: string[], steps: number): string[] => {
         const index = Math.min(Math.floor(t / seg), arr.length - 2);
         const c1 = arr[index];
         const c2 = arr[index + 1];
-        out.push(hslToHex(c1.map((c, i) => interpolate(t, c, c2[i], i === 0))));
+        out.push(hslToHex(c1.map((c, i) => interpolate(t, c, c2[i], i === 0)) as HSL));
     }
     return out;
-};
-
-const interpolate = (t: number, v1: number, v2: number, minDist?: boolean): number => {
-    if (!minDist) {
-        return v1 + (v2 - v1) * t;
-    }
-    const a = Math.min(v1, v2);
-    const b = Math.max(v1, v2);
-    const dist1 = b - a;
-    const dist2 = 1 - b + a;
-    if (dist1 < dist2) {
-        return a + dist1 * t;
-    } else {
-        return (b + dist2 * t) % 1;
-    }
-};
-
-const hexToHsl = (hex: string): number[] => {
-    const r = parseInt(hex.substring(hex.length - 6, hex.length - 4), 16) / 255;
-    const g = parseInt(hex.substring(hex.length - 4, hex.length - 2), 16) / 255;
-    const b = parseInt(hex.substring(hex.length - 2, hex.length), 16) / 255;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    let l = (max + min) / 2;
-    let s = 0;
-    let h = 0;
-    if (max !== min) {
-        const d = max - min;
-        s = l < 0.5 ? d / (max + min) : d / (2 - max - min);
-        if (r == max) {
-            h = (g - b) / d + (g < b ? 6 : 0);
-        } else if (g == max) {
-            h = 2 + (b - r) / d;
-        } else {
-            h = 4 + (r - g) / d;
-        }
-    }
-    h /= 6;
-    return [h, s, l]; //[0,1] range
-};
-
-const hslToHex = (arr: number[]): string => {
-    let h = arr[0];
-    let s = arr[1];
-    let l = arr[2];
-    let r, g, b;
-    if (s == 0) {
-        r = g = b = l;
-    } else {
-        let q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        let p = 2 * l - q;
-
-        r = Math.round(hueToRgb(h + 1 / 3, p, q) * 255);
-        g = Math.round(hueToRgb(h, p, q) * 255);
-        b = Math.round(hueToRgb(h - 1 / 3, p, q) * 255);
-    }
-    return "0x" + hexValue(r) + hexValue(g) + hexValue(b);
-};
-
-const hueToRgb = (t: number, p: number, q: number): number => {
-    if (t < 0) {
-        t += 1;
-    }
-    if (t > 1) {
-        t -= 1;
-    }
-    if (t < 1 / 6) {
-        return p + (q - p) * 6 * t;
-    }
-    if (t < 1 / 2) {
-        return q;
-    }
-    if (t < 2 / 3) {
-        return p + (q - p) * (2 / 3 - t) * 6;
-    }
-    return p;
-};
-
-const hexValue = (v: number): string => {
-    return ("0" + v.toString(16)).slice(-2);
-};
-
-const degreeToRadians = (degrees: number): number => {
-    return degrees * Math.PI / 180;
-};
-
-const radiansToDegree = (radians: number): number => {
-    return radians * 180 / Math.PI;
-};
-
-const setPositionOnLine = (target: Point, t: number, p0: Point, p1: Point): void => {
-    target.x = p0.x + (p1.x - p0.x) * t;
-    target.y = p0.y + (p1.y - p0.y) * t;
-};
-
-const setPositionOnCurve = (target: Point, t: number, p1: Point, p2: Point, cp1: Point, cp2: Point): void => {
-    const t2 = t * t;
-    const t3 = t * t * t;
-    target.x = Math.pow(1 - t, 3) * p1.x + 3 * Math.pow(1 - t, 2) * t * cp1.x + 3 * (1 - t) * t2 * cp2.x + t3 * p2.x;
-    target.y = Math.pow(1 - t, 3) * p1.y + 3 * Math.pow(1 - t, 2) * t * cp1.y + 3 * (1 - t) * t2 * cp2.y + t3 * p2.y;
 };
 
 export { Particles, IParticleResult, ParticlesConfig };

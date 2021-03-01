@@ -1,7 +1,7 @@
 {
     "name": "dizzy-particles",
     "author": "Alexey Salazkin",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "description": "Simple 2d rendering engine.",
     "keywords": [
         "particles",
@@ -18,5 +18,8 @@
     "scripts": {
         "start": "tsc && rollup -c &&  dts-bundle-generator -o dist/dizzy-particles.d.ts src/index.ts"
     },
-    "license": "MIT"
+    "license": "MIT",
+    "dependencies": {
+        "dizzy-utils": "^1.0.0"
+    }
 }
