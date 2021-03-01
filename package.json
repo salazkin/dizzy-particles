@@ -1,8 +1,8 @@
 {
     "name": "dizzy-particles",
     "author": "Alexey Salazkin",
-    "version": "1.0.5",
-    "description": "Simple 2d rendering engine.",
+    "version": "1.0.6",
+    "description": "2d particles",
     "keywords": [
         "particles",
         "engine"
