@@ -1,108 +1,4 @@
-const degreeToRadians = (degrees) => {
-    return degrees * Math.PI / 180;
-};
-const interpolate = (t, v1, v2, shortestDist = false) => {
-    if (shortestDist) {
-        const a = Math.min(v1, v2);
-        const b = Math.max(v1, v2);
-        const dist1 = b - a;
-        const dist2 = 1 - b + a;
-        if (dist1 < dist2) {
-            return a + dist1 * t;
-        }
-        else {
-            return (b + dist2 * t) % 1;
-        }
-    }
-    return v1 + (v2 - v1) * t;
-};
-const getPositionOnLine = (t, p0, p1, target) => {
-    const x = interpolate(t, p0.x, p1.x);
-    const y = interpolate(t, p0.y, p1.y);
-    if (target !== undefined) {
-        target.x = x;
-        target.y = y;
-    }
-    else {
-        return { x, y };
-    }
-};
-const getPositionOnCubicBezierCurve = (t, p1, p2, cp1, cp2, target) => {
-    const t2 = t * t;
-    const t3 = t * t * t;
-    const x = Math.pow(1 - t, 3) * p1.x + 3 * Math.pow(1 - t, 2) * t * cp1.x + 3 * (1 - t) * t2 * cp2.x + t3 * p2.x;
-    const y = Math.pow(1 - t, 3) * p1.y + 3 * Math.pow(1 - t, 2) * t * cp1.y + 3 * (1 - t) * t2 * cp2.y + t3 * p2.y;
-    if (target !== undefined) {
-        target.x = x;
-        target.y = y;
-    }
-    else {
-        return { x, y };
-    }
-};
-const hexToHsl = (hex) => {
-    const r = parseInt(hex.substring(hex.length - 6, hex.length - 4), 16) / 255;
-    const g = parseInt(hex.substring(hex.length - 4, hex.length - 2), 16) / 255;
-    const b = parseInt(hex.substring(hex.length - 2, hex.length), 16) / 255;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    let l = (max + min) / 2;
-    let s = 0;
-    let h = 0;
-    if (max !== min) {
-        const d = max - min;
-        s = l < 0.5 ? d / (max + min) : d / (2 - max - min);
-        if (r == max) {
-            h = (g - b) / d + (g < b ? 6 : 0);
-        }
-        else if (g == max) {
-            h = 2 + (b - r) / d;
-        }
-        else {
-            h = 4 + (r - g) / d;
-        }
-    }
-    h /= 6;
-    return [h, s, l];
-};
-const hslToHex = (arr) => {
-    let h = arr[0];
-    let s = arr[1];
-    let l = arr[2];
-    let r, g, b;
-    if (s == 0) {
-        r = g = b = l;
-    }
-    else {
-        let q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        let p = 2 * l - q;
-        const hue = (t, p, q) => {
-            if (t < 0) {
-                t += 1;
-            }
-            if (t > 1) {
-                t -= 1;
-            }
-            if (t < 1 / 6) {
-                return p + (q - p) * 6 * t;
-            }
-            if (t < 1 / 2) {
-                return q;
-            }
-            if (t < 2 / 3) {
-                return p + (q - p) * (2 / 3 - t) * 6;
-            }
-            return p;
-        };
-        r = Math.round(hue(h + 1 / 3, p, q) * 255);
-        g = Math.round(hue(h, p, q) * 255);
-        b = Math.round(hue(h - 1 / 3, p, q) * 255);
-    }
-    const c = (v) => {
-        return ("0" + v.toString(16)).slice(-2);
-    };
-    return "0x" + c(r) + c(g) + c(b);
-};
+import { degreeToRadians, interpolate, getPositionOnCubicBezierCurve, getPositionOnLine, hexToHsl, hslToHex, shortPathInterpolate } from 'dizzy-utils';
 
 class Point {
     constructor() {
@@ -140,7 +36,7 @@ class Particles {
         }
     }
     createParticle() {
-        return { x: 0, y: 0, alpha: 1, scaleX: 1, scaleY: 1, rotation: 0, tint: "0xffffff" };
+        return { x: 0, y: 0, alpha: 1, scaleX: 1, scaleY: 1, rotation: 0, tint: 0xffffff };
     }
     update(dt) {
         const time = this.time;
@@ -272,7 +168,7 @@ class Particles {
                 particleData.tint = this.correctedTintArr;
             }
             else {
-                particleData.tint = this.getValue("tint");
+                particleData.tint = parseInt(this.getValue("tint"));
             }
         }
         particleData.scaleFrom = this.getValue("scaleFrom");
@@ -344,16 +240,16 @@ class Particles {
     }
 }
 const getInterpolatedColors = (hexArr, steps) => {
-    const arr = hexArr.map(hex => hexToHsl(hex));
+    const arr = hexArr.map(hex => hexToHsl(parseInt(hex)));
     const out = [];
     const step = 1 / steps;
+    const seg = 1 / (arr.length - 1);
     for (let i = 0; i < steps + 1; i++) {
         const t = Math.min(step * i, 1);
-        const seg = 1 / (arr.length - 1);
         const index = Math.min(Math.floor(t / seg), arr.length - 2);
         const c1 = arr[index];
         const c2 = arr[index + 1];
-        out.push(hslToHex(c1.map((c, i) => interpolate(t, c, c2[i], i === 0))));
+        out.push(hslToHex(...c1.map((c, i) => shortPathInterpolate(t, c, c2[i]))));
     }
     return out;
 };

@@ -1,11 +1,11 @@
-import { degreeToRadians, getPositionOnCubicBezierCurve, getPositionOnLine, hexToHsl, hslToHex, interpolate } from "../node_modules/dizzy-utils/dist/dizzy-utils";
+import { degreeToRadians, getPositionOnCubicBezierCurve, getPositionOnLine, hexToHsl, hslToHex, interpolate, shortPathInterpolate } from "dizzy-utils";
 
 class Point {
     x: number = 0;
     y: number = 0;
 };
 
-type HSL = [number, number, number];
+type Vec3 = [number, number, number];
 
 type ParticlesConfig = {
     duration?: Array<number | number[]> | number;
@@ -38,7 +38,7 @@ interface IParticleResult {
     scaleX: number;
     scaleY: number;
     rotation: number;
-    tint: string;
+    tint: number;
 }
 
 type ParticleData = {
@@ -54,7 +54,7 @@ type ParticleData = {
     scaleTo: number;
     scaleYoYo: boolean;
     rotationSpeed: number;
-    tint: string | string[];
+    tint: number | number[];
     updated: boolean;
     delay: number;
     duration: number;
@@ -71,7 +71,7 @@ class Particles {
     protected curveLen: number = 20;
     protected curveSeg: number = 1 / (this.curveLen - 1);
 
-    protected correctedTintArr: string[] | null = null;
+    protected correctedTintArr: number[] | null = null;
 
     constructor(protected totalParticles: number, protected loop: boolean, protected config: ParticlesConfig, protected cb: () => void) {
         this.createParticles(totalParticles);
@@ -93,7 +93,7 @@ class Particles {
     }
 
     protected createParticle(): IParticleResult {
-        return { x: 0, y: 0, alpha: 1, scaleX: 1, scaleY: 1, rotation: 0, tint: "0xffffff" };
+        return { x: 0, y: 0, alpha: 1, scaleX: 1, scaleY: 1, rotation: 0, tint: 0xffffff };
     }
 
     public update(dt: number): void {
@@ -244,7 +244,7 @@ class Particles {
                 }
                 particleData.tint = this.correctedTintArr;
             } else {
-                particleData.tint = this.getValue<string>("tint");
+                particleData.tint = parseInt(this.getValue<string>("tint"));
             }
         }
 
@@ -324,17 +324,18 @@ class Particles {
     }
 }
 
-const getInterpolatedColors = (hexArr: string[], steps: number): string[] => {
-    const arr = hexArr.map(hex => hexToHsl(hex));
-    const out: string[] = [];
+const getInterpolatedColors = (hexArr: string[], steps: number): number[] => {
+    const arr = hexArr.map(hex => hexToHsl(parseInt(hex)));
+    const out: number[] = [];
     const step = 1 / steps;
+    const seg = 1 / (arr.length - 1);
+
     for (let i = 0; i < steps + 1; i++) {
         const t = Math.min(step * i, 1);
-        const seg = 1 / (arr.length - 1);
         const index = Math.min(Math.floor(t / seg), arr.length - 2);
         const c1 = arr[index];
         const c2 = arr[index + 1];
-        out.push(hslToHex(c1.map((c, i) => interpolate(t, c, c2[i], i === 0)) as HSL));
+        out.push(hslToHex(...c1.map((c, i) => shortPathInterpolate(t, c, c2[i])) as Vec3));
     }
     return out;
 };

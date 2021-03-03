@@ -34,7 +34,7 @@ export interface IParticleResult {
 	scaleX: number;
 	scaleY: number;
 	rotation: number;
-	tint: string;
+	tint: number;
 }
 export declare type ParticleData = {
 	posStart: Point;
@@ -49,7 +49,7 @@ export declare type ParticleData = {
 	scaleTo: number;
 	scaleYoYo: boolean;
 	rotationSpeed: number;
-	tint: string | string[];
+	tint: number | number[];
 	updated: boolean;
 	delay: number;
 	duration: number;
@@ -67,7 +67,7 @@ export declare class Particles {
 	protected posEnd: Point;
 	protected curveLen: number;
 	protected curveSeg: number;
-	protected correctedTintArr: string[] | null;
+	protected correctedTintArr: number[] | null;
 	constructor(totalParticles: number, loop: boolean, config: ParticlesConfig, cb: () => void);
 	protected createParticles(totalParticles: number): void;
 	protected createParticle(): IParticleResult;
