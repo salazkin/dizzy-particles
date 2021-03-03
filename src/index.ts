@@ -214,13 +214,13 @@ class Particles {
         const cp2Mag: number = this.getValue<number>("posControlPoint2Mag");
 
         if (cp1Mag !== 0 || cp2Mag !== 0) {
-            let dx = endX - startX;
-            let dy = endY - startY;
-            let ang = Math.atan2(dx, dy);
-            let angle1 = ang + degreeToRadians(this.getValue<number>("posControlPoint1Angle"));
-            let angle2 = -(Math.PI - ang) + degreeToRadians(this.getValue<number>("posControlPoint2Angle"));
+            const dx = endX - startX;
+            const dy = endY - startY;
+            const ang = Math.atan2(dx, dy);
+            const angle1 = ang + degreeToRadians(this.getValue<number>("posControlPoint1Angle"));
+            const angle2 = -(Math.PI - ang) + degreeToRadians(this.getValue<number>("posControlPoint2Angle"));
 
-            let dist = Math.sqrt(dx * dx + dy * dy);
+            const dist = Math.sqrt(dx * dx + dy * dy);
 
             particleData.cp1 = { x: startX + Math.sin(angle1) * dist * cp1Mag, y: startY + Math.cos(angle1) * dist * cp1Mag };
             particleData.cp2 = { x: endX + Math.sin(angle2) * dist * cp2Mag, y: endY + Math.cos(angle2) * dist * cp2Mag };
@@ -240,7 +240,7 @@ class Particles {
         if (this.config.tint) {
             if (this.config.tintInterpolate && Array.isArray(this.config.tint) && this.config.tint.length > 1) {
                 if (!this.correctedTintArr) {
-                    this.correctedTintArr = getInterpolatedColors(this.config.tint, 5);
+                    this.correctedTintArr = getInterpolatedColors(this.config.tint, 10);
                 }
                 particleData.tint = this.correctedTintArr;
             } else {
