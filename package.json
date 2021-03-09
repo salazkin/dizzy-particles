@@ -1,7 +1,7 @@
 {
     "name": "dizzy-particles",
     "author": "Alexey Salazkin",
-    "version": "1.0.9",
+    "version": "1.0.10",
     "description": "2d particles",
     "keywords": [
         "particles",
@@ -20,6 +20,6 @@
     },
     "license": "MIT",
     "dependencies": {
-        "dizzy-utils": "^2.0.0"
+        "dizzy-utils": "3.0.1"
     }
 }

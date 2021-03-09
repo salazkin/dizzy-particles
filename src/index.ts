@@ -1,4 +1,4 @@
-import { degreeToRadians, cubicBezierCurveInterpolate, lineInterpolate, hexToHsl, hslToHex, interpolate, shortPathInterpolate } from "dizzy-utils";
+import { degreeToRadians, cubicBezierCurveInterpolate, lineInterpolate, hexToHsl, hslToHex, interpolate, angleInterpolate } from "dizzy-utils";
 
 class Point {
     x: number = 0;
@@ -335,7 +335,7 @@ const getInterpolatedColors = (hexArr: string[], steps: number): number[] => {
         const index = Math.min(Math.floor(t / seg), arr.length - 2);
         const c1 = arr[index];
         const c2 = arr[index + 1];
-        out.push(hslToHex(...c1.map((c, i) => shortPathInterpolate(t, c, c2[i])) as Vec3));
+        out.push(hslToHex(...c1.map((c, i) => angleInterpolate(t, c, c2[i])) as Vec3));
     }
     return out;
 };
