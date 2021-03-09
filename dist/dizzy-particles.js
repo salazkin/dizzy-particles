@@ -249,7 +249,7 @@ const getInterpolatedColors = (hexArr, steps) => {
         const index = Math.min(Math.floor(t / seg), arr.length - 2);
         const c1 = arr[index];
         const c2 = arr[index + 1];
-        out.push(hslToHex(...c1.map((c, i) => angleInterpolate(t, c, c2[i], 1))));
+        out.push(hslToHex(...c1.map((c, i) => angleInterpolate(t, c, c2[i]))));
     }
     return out;
 };
