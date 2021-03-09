@@ -1,4 +1,4 @@
-import { degreeToRadians, interpolate, getPositionOnCubicBezierCurve, getPositionOnLine, hexToHsl, hslToHex, shortPathInterpolate } from 'dizzy-utils';
+import { degreeToRadians, interpolate, cubicBezierCurveInterpolate, lineInterpolate, hexToHsl, hslToHex, shortPathInterpolate } from 'dizzy-utils';
 
 class Point {
     constructor() {
@@ -208,15 +208,15 @@ class Particles {
                 particleData.curve[to] = to === this.curveLen - 1 ? particleData.posEnd : new Point();
             }
             if (from !== 0) {
-                getPositionOnCubicBezierCurve(from * this.curveSeg, particleData.posStart, particleData.posEnd, particleData.cp1, particleData.cp2, particleData.curve[from]);
+                cubicBezierCurveInterpolate(from * this.curveSeg, particleData.posStart, particleData.cp1, particleData.cp2, particleData.posEnd, particleData.curve[from]);
             }
             if (to !== this.curveLen - 1) {
-                getPositionOnCubicBezierCurve(to * this.curveSeg, particleData.posStart, particleData.posEnd, particleData.cp1, particleData.cp2, particleData.curve[to]);
+                cubicBezierCurveInterpolate(to * this.curveSeg, particleData.posStart, particleData.cp1, particleData.cp2, particleData.posEnd, particleData.curve[to]);
             }
-            getPositionOnLine((t % this.curveSeg) / this.curveSeg, particleData.curve[from], particleData.curve[to], result);
+            lineInterpolate((t % this.curveSeg) / this.curveSeg, particleData.curve[from], particleData.curve[to], result);
         }
         else {
-            getPositionOnLine(t, particleData.posStart, particleData.posEnd, result);
+            lineInterpolate(t, particleData.posStart, particleData.posEnd, result);
         }
         if (particleData.rotationSpeed !== 0) {
             result.rotation += particleData.rotationSpeed;
