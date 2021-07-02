@@ -1,4 +1,106 @@
-import { degreeToRadians, cubicBezierCurveInterpolate, lineInterpolate, hexToHsl, hslToHex, interpolate, angleInterpolate } from "dizzy-utils";
+const degreeToRadians = (degrees: number): number => {
+    return degrees * Math.PI / 180;
+};
+
+const lerp = (v1: number, v2: number, t: number): number => {
+    return v1 + (v2 - v1) * t;
+};
+
+const lerpAngle = (v1: number, v2: number, t: number, range: number = 360): number => {
+    let result: number;
+    const dt = v2 - v1;
+    const mid = range * 0.5;
+    if (dt < -mid) {
+        v2 += range;
+        result = lerp(v1, v2, t);
+        if (result >= range) {
+            result -= range;
+        }
+    } else if (dt > mid) {
+        v2 -= range;
+        result = lerp(v1, v2, t);
+        if (result < 0) {
+            result += range;
+        }
+    } else {
+        result = lerp(v1, v2, t);
+    }
+    return result;
+};
+
+const lerpPoint = (p0: Point, p1: Point, t: number, target?: Point): Point | undefined => {
+    const x = lerp(p0.x, p1.x, t);
+    const y = lerp(p0.y, p1.y, t);
+    if (target) {
+        target.x = x;
+        target.y = y;
+    } else {
+        return { x, y };
+    }
+};
+
+const lerpCurve = (p1: Point, cp1: Point, cp2: Point, p2: Point, t: number, target?: Point): Point => {
+    const t2 = t * t;
+    const t3 = t * t * t;
+    const x = Math.pow(1 - t, 3) * p1.x + 3 * Math.pow(1 - t, 2) * t * cp1.x + 3 * (1 - t) * t2 * cp2.x + t3 * p2.x;
+    const y = Math.pow(1 - t, 3) * p1.y + 3 * Math.pow(1 - t, 2) * t * cp1.y + 3 * (1 - t) * t2 * cp2.y + t3 * p2.y;
+    if (target) {
+        target.x = x;
+        target.y = y;
+    } else {
+        return { x, y };
+    }
+};
+
+const hexToHsl = (hex: number): Vec3 => {
+    const r = (hex >> 16) / 255;
+    const g = (hex >> 8 & 0xff) / 255;
+    const b = (hex & 0xff) / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let l = (max + min) / 2;
+    let s = 0;
+    let h = 0;
+    if (max !== min) {
+        const d = max - min;
+        s = l < 0.5 ? d / (max + min) : d / (2 - max - min);
+        if (r == max) {
+            h = (g - b) / d + (g < b ? 6 : 0);
+        } else if (g == max) {
+            h = 2 + (b - r) / d;
+        } else {
+            h = 4 + (r - g) / d;
+        }
+    }
+    h /= 6;
+    return [h, s, l];
+};
+
+const rgbToHex = (r: number, g: number, b: number): number => {
+    return r << 16 | g << 8 | b;
+};
+
+const hslToHex = (h: number, s: number, l: number): number => {
+    let r: number, g: number, b: number;
+    if (s == 0) {
+        r = g = b = l;
+    } else {
+        let q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        let p = 2 * l - q;
+        const hue = (t: number, p: number, q: number): number => {
+            if (t < 0) { t += 1; }
+            if (t > 1) { t -= 1; }
+            if (t < 1 / 6) { return p + (q - p) * 6 * t; }
+            if (t < 1 / 2) { return q; }
+            if (t < 2 / 3) { return p + (q - p) * (2 / 3 - t) * 6; }
+            return p;
+        };
+        r = Math.round(hue(h + 1 / 3, p, q) * 255);
+        g = Math.round(hue(h, p, q) * 255);
+        b = Math.round(hue(h - 1 / 3, p, q) * 255);
+    }
+    return rgbToHex(r, g, b);
+};
 
 class Point {
     x: number = 0;
@@ -275,7 +377,7 @@ class Particles {
 
         const result: IParticleResult = particleData.result;
         result.alpha = particleData.alphaFrom + (particleData.alphaTo - particleData.alphaFrom) * (particleData.alphaYoYo ? yoyoTime : t);
-        result.scaleX = result.scaleY = interpolate(particleData.scaleYoYo ? yoyoTime : t, particleData.scaleFrom, particleData.scaleTo);
+        result.scaleX = result.scaleY = lerp(particleData.scaleFrom, particleData.scaleTo, particleData.scaleYoYo ? yoyoTime : t);
 
         if (particleData.curve) {
             const from = Math.floor(t / this.curveSeg);
@@ -290,16 +392,16 @@ class Particles {
             }
 
             if (from !== 0) {
-                cubicBezierCurveInterpolate(from * this.curveSeg, particleData.posStart, particleData.cp1, particleData.cp2, particleData.posEnd, particleData.curve[from]);
+                lerpCurve(particleData.posStart, particleData.cp1, particleData.cp2, particleData.posEnd, from * this.curveSeg, particleData.curve[from]);
             }
 
             if (to !== this.curveLen - 1) {
-                cubicBezierCurveInterpolate(to * this.curveSeg, particleData.posStart, particleData.cp1, particleData.cp2, particleData.posEnd, particleData.curve[to]);
+                lerpCurve(particleData.posStart, particleData.cp1, particleData.cp2, particleData.posEnd, to * this.curveSeg, particleData.curve[to]);
             }
 
-            lineInterpolate((t % this.curveSeg) / this.curveSeg, particleData.curve[from], particleData.curve[to], result);
+            lerpPoint(particleData.curve[from], particleData.curve[to], (t % this.curveSeg) / this.curveSeg, result);
         } else {
-            lineInterpolate(t, particleData.posStart, particleData.posEnd, result);
+            lerpPoint(particleData.posStart, particleData.posEnd, t, result);
         }
 
         if (particleData.rotationSpeed !== 0) {
@@ -335,7 +437,7 @@ const getInterpolatedColors = (hexArr: string[], steps: number): number[] => {
         const index = Math.min(Math.floor(t / seg), arr.length - 2);
         const c1 = arr[index];
         const c2 = arr[index + 1];
-        out.push(hslToHex(...c1.map((c, i) => angleInterpolate(t, c, c2[i])) as Vec3));
+        out.push(hslToHex(...c1.map((c, i) => lerpAngle(c, c2[i], t)) as Vec3));
     }
     return out;
 };
